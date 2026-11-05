@@ -1,0 +1,112 @@
+plugins {
+    id 'java-library'
+    id 'net.neoforged.moddev' version '2.0.148'
+    id 'idea'
+}
+
+version = mod_version
+group = mod_group_id
+
+// ビルド出力は Gradle のユーザーフォルダ（~/.gradle/project-builds/）に置く。
+// このフォルダは日本語を含むパスかつ Google Drive の同期対象で、
+// 子プロセス（テスト・runClient）へのパスの文字化けや、同期によるファイルロックが起きるため。
+// 別の場所にしたいときは -PmcBuildRoot=<ASCII のパス> を付ける。
+def buildRoot = providers.gradleProperty('mcBuildRoot')
+        .orElse("${gradle.gradleUserHomeDir}/project-builds".toString()).get()
+layout.buildDirectory = file("${buildRoot}/mc-portal-check")
+
+base {
+    archivesName = 'mc-portal-check'
+}
+
+// 26.2 は Java 25 で動くので Java 25 でビルドする（JDK は foojay が自動取得する）
+java.toolchain.languageVersion = JavaLanguageVersion.of(25)
+
+neoForge {
+    version = project.neo_version
+
+    runs {
+        // 動作確認用のクライアント（シングルプレイなら統合サーバーでサーバー側の判定も動く）。
+        // -PpcJoin=localhost を付けると、起動後そのままそのサーバーに入る
+        client {
+            client()
+            programArguments.addAll '--username', providers.gradleProperty('pcUser').orElse('Dev').get()
+            def join = providers.gradleProperty('pcJoin').getOrNull()
+            if (join != null) {
+                programArguments.addAll '--quickPlayMultiplayer', join
+            }
+            gameDirectory = layout.buildDirectory.dir("runs/client-${providers.gradleProperty('pcUser').orElse('Dev').get()}").get().asFile
+        }
+        // 動作確認用の専用サーバー（offline モードにしてから使う）
+        server {
+            server()
+            programArgument '--nogui'
+            gameDirectory = layout.buildDirectory.dir('runs/server').get().asFile
+        }
+
+        configureEach {
+            logLevel = org.slf4j.event.Level.INFO
+        }
+    }
+
+    mods {
+        "${mod_id}" {
+            sourceSet(sourceSets.main)
+        }
+    }
+}
+
+dependencies {
+    testImplementation platform('org.junit:junit-bom:5.13.4')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+test {
+    useJUnitPlatform()
+}
+
+// neoforge.mods.toml に gradle.properties の値を埋め込む
+var generateModMetadata = tasks.register("generateModMetadata", ProcessResources) {
+    var replaceProperties = [
+            minecraft_version      : minecraft_version,
+            minecraft_version_range: minecraft_version_range,
+            neo_version            : neo_version,
+            mod_id                 : mod_id,
+            mod_name               : mod_name,
+            mod_license            : mod_license,
+            mod_version            : mod_version,
+    ]
+    inputs.properties replaceProperties
+    expand replaceProperties
+    from "src/main/templates"
+    into layout.buildDirectory.dir("generated/sources/modMetadata")
+}
+sourceSets.main.resources.srcDir generateModMetadata
+neoForge.ideSyncTask generateModMetadata
+
+// jar 名: mc-portal-check-1.0.0+mc26.2-neoforge.jar
+tasks.named('jar', Jar) {
+    archiveFileName = "mc-portal-check-${mod_version}+mc${minecraft_version}-neoforge.jar"
+    from(files('LICENSE')) { into 'META-INF' }
+}
+
+// できた jar をプロジェクトの dist/ にコピーする（build のたびに実行）
+var copyJarToDist = tasks.register('copyJarToDist', Copy) {
+    from tasks.named('jar')
+    into layout.projectDirectory.dir('dist')
+}
+tasks.named('build') {
+    finalizedBy copyJarToDist
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+}
+
+idea {
+    module {
+        downloadSources = true
+        downloadJavadoc = true
+    }
+}
