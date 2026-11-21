@@ -11,9 +11,6 @@
 | --- | --- |
 | ![干渉ありのカード](images/portal-check-interfere.png) | ![干渉なしのカード](images/portal-check-ok.png) |
 
-> [!NOTE]
-> 1.1.0 はプレリリースです。負荷の高いサーバーで、ゲートに火を付けた直後の表示がすぐ変わるかはまだ確かめていません。
-
 ## 導入
 
 1. [Releases](https://github.com/htani0817/mc-portal-check/releases) から `mc-portal-check-<版>+mc26.3-neoforge.jar` をダウンロードします

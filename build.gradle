@@ -85,7 +85,7 @@ var generateModMetadata = tasks.register("generateModMetadata", ProcessResources
 sourceSets.main.resources.srcDir generateModMetadata
 neoForge.ideSyncTask generateModMetadata
 
-// jar 名: mc-portal-check-1.1.0+mc26.3-neoforge.jar
+// jar 名: mc-portal-check-1.0.0+mc26.3-neoforge.jar
 tasks.named('jar', Jar) {
     archiveFileName = "mc-portal-check-${mod_version}+mc${minecraft_version}-neoforge.jar"
     from(files('LICENSE')) { into 'META-INF' }
